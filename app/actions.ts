@@ -74,17 +74,21 @@ export async function getAllPlaylistItems(playlistId: string) {
 }
 
 export async function getAllData(channelId: string) {
-    const playlists = await getAllPlaylists(channelId);
-    const playlistItems = []
-    const seen = {} as {[key: string]: boolean};
-    for(let playlist of playlists) {
-        const playlistId: string = playlist.id;
-        if(seen[playlistId]) {
-            continue;
-        }
-        seen[playlistId] = true;
-        const items = await getAllPlaylistItems(playlist.id);
-        playlistItems.push(...items.map(i => ({...i, playlistDetail: playlist})));
-    }
-    return {channel: await getChannelDetail(channelId), playlistItems};
+    const [channel, playlists] = await Promise.all([getChannelDetail(channelId), getAllPlaylists(channelId)]);
+    const playlistMap = new Map<string, any>(playlists.map((p) => [p.id, p]));
+    const playlistConents = await Promise.all(
+        [...playlistMap.keys()].map(
+            async (p) => ([p, await getAllPlaylistItems(p)] as [string, any])
+        )
+    );
+    const playlistItemsMap = new Map<string, any>(playlistConents);
+    const playlistItems = [] as any;
+    playlistMap.forEach((playlist, playlistId) => {
+        const items = playlistItemsMap.get(playlistId);
+        playlistItems.push(...items.map((i: any) => ({...i, playlistDetail: playlist})));
+    });
+
+    console.log(JSON.stringify(channel, null, 2));
+
+    return {channel, playlistItems};
 }
